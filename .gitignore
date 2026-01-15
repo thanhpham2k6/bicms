@@ -1,0 +1,9 @@
+# Bỏ qua file chứa mật khẩu DB
+includes/db.php
+
+# Bỏ qua thư mục ảnh upload (nặng)
+uploads/
+
+# File hệ thống
+.DS_Store
+.vscode/
