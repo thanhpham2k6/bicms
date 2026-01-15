@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+	<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BiCMS Admin Dashboard</title>
