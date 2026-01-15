@@ -87,7 +87,11 @@ if (!isset($_SESSION['user_id'])) {
 	    </li>
 	    <li><a href="categories.php"><i class="fa-solid fa-folder"></i> Chuyên mục</a>
 	    </li>
-            <li>
+		<li class="nav-item">
+    <a class="nav-link" href="users.php"><i class="fa-solid fa-users"></i> Thành viên</a>
+</li>	    
+
+	<li>
                 <a href="logout.php" class="text-danger"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</a>
             </li>
         </ul>
