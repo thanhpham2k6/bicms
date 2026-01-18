@@ -12,13 +12,16 @@ Hệ quản trị nội dung tự xây dựng (Custom CMS), tối giản, không
 
 Chạy lệnh sau để cài đặt Web Server, Database và Source Code trong 1 nốt nhạc:
 
-```bash
 # 1. Tải script
-wget [https://raw.githubusercontent.com/thanhpham2k6/bicms/main/install.sh](https://raw.githubusercontent.com/thanhpham2k6/bicms/main/install.sh)
+```bash
+wget -O - https://raw.githubusercontent.com/thanhpham2k6/bicms/main/install.sh | sudo bash
+```
 
 # 2. Chạy script
+```bash
 chmod +x install.sh
 sudo ./install.sh
+```
 
 Thông tin đăng nhập mặc định:
 
