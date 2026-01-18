@@ -14,7 +14,7 @@ Chạy lệnh sau để cài đặt Web Server, Database và Source Code trong 1
 
 # 1. Tải script
 ```bash
-wget -O - https://raw.githubusercontent.com/thanhpham2k6/bicms/main/install.sh | sudo bash
+wget https://raw.githubusercontent.com/thanhpham2k6/bicms/main/install.sh
 ```
 
 # 2. Chạy script
