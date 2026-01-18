@@ -1,132 +1,148 @@
 #!/bin/bash
 
-# Cấu hình Repo
-REPO_URL="https://github.com/thanhpham2k6/bicms.git"
+# --- 1. THU THẬP THÔNG TIN ---
+clear
+echo "=========================================="
+echo "   🚀 CÀI ĐẶT BiCMS TỪ GITHUB (FULL)    "
+echo "=========================================="
 
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-echo -e "${CYAN}===========================================${NC}"
-echo -e "${CYAN}      BiCMS AUTO INSTALLER (NO-SQL FILE)   ${NC}"
-echo -e "${CYAN}===========================================${NC}"
-
-# 1. NHẬP CẤU HÌNH
-echo -e "${GREEN}👉 Bước 1: Cấu hình hệ thống${NC}"
-read -p "Tên thư mục web (Mặc định: bicms): " INSTALL_FOLDER
-INSTALL_FOLDER=${INSTALL_FOLDER:-bicms}
-TARGET_DIR="/var/www/html/$INSTALL_FOLDER"
-
-read -p "Tên Database (Mặc định: bicms_db): " DB_NAME
+# A. CẤU HÌNH DATABASE (Sẽ tự tạo mới)
+echo "--- [1] THÔNG TIN DATABASE MỚI ---"
+read -p "👉 Tên Database muốn tạo (Mặc định: bicms_db): " DB_NAME
 DB_NAME=${DB_NAME:-bicms_db}
 
-read -p "User Database (Mặc định: bicms_user): " DB_USER
+read -p "👉 Tên User MySQL muốn tạo (Mặc định: bicms_user): " DB_USER
 DB_USER=${DB_USER:-bicms_user}
 
-read -sp "Mật khẩu Database (Để trống sẽ tự sinh): " DB_PASS
-if [ -z "$DB_PASS" ]; then DB_PASS=$(openssl rand -base64 12); fi
-echo ""
+read -p "👉 Mật khẩu cho User MySQL này (Mặc định: 123456): " DB_PASS
+DB_PASS=${DB_PASS:-123456}
 
-echo -e "\n-> Đang cài vào: $TARGET_DIR"
+# B. CẤU HÌNH TÀI KHOẢN ADMIN CMS
+echo -e "\n--- [2] TẠO TÀI KHOẢN ADMIN CMS ---"
+read -p "👉 Tên đăng nhập Admin (Mặc định: admin): " ADMIN_USER
+ADMIN_USER=${ADMIN_USER:-admin}
 
-# 2. CÀI LAMP STACK & GIT
-echo -e "${GREEN}👉 Bước 2: Cài đặt Web Server...${NC}"
-sudo apt update -q
-sudo apt install -y apache2 mysql-server php php-mysql php-pdo php-mbstring git -q
+read -p "👉 Mật khẩu Admin (Mặc định: admin123): " ADMIN_PASS
+ADMIN_PASS=${ADMIN_PASS:-admin123}
 
-# 3. TẢI CODE
-echo -e "${GREEN}👉 Bước 3: Tải Source Code...${NC}"
-if [ -d "$TARGET_DIR" ]; then sudo rm -rf "$TARGET_DIR"; fi
-sudo git clone "$REPO_URL" "$TARGET_DIR"
 
-# 4. TẠO DATABASE & BẢNG (MAGIC STEP)
-echo -e "${GREEN}👉 Bước 4: Tự động tạo cấu trúc bảng (Schema)...${NC}"
+# --- 2. CÀI ĐẶT MÔI TRƯỜNG & GIT ---
+echo -e "\n📦 Dang cap nhat va cai dat Apache, MySQL, PHP, Git..."
+sudo apt update -y > /dev/null 2>&1
+sudo apt install apache2 mysql-server php php-mysql php-curl php-gd php-mbstring php-xml php-zip unzip git -y > /dev/null 2>&1
 
-# 4.1 Tạo DB và User
-sudo mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;"
+
+# --- 3. TẢI SOURCE CODE TỪ GITHUB (QUAN TRỌNG NHẤT) ---
+echo "⬇️ Dang tai ma nguon tu GitHub..."
+cd /var/www/html
+
+# Xóa thư mục cũ nếu có để tránh lỗi
+if [ -d "bicms" ]; then
+    sudo rm -rf bicms
+fi
+
+# Clone code về
+sudo git clone https://github.com/thanhpham2k6/bicms.git
+cd bicms
+
+# Kiểm tra xem tải được chưa
+if [ ! -f "index.php" ]; then
+    echo "❌ Lỗi: Không tải được mã nguồn từ GitHub. Kiểm tra lại mạng!"
+    exit 1
+fi
+
+
+# --- 4. THIẾT LẬP MYSQL (TẠO USER & DB) ---
+echo "🗄️ Dang cau hinh Database..."
+
+# Tạo Database
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME};"
+
+# Tạo User MySQL mới và cấp quyền (Fix lỗi 'làm gì có user')
 sudo mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
-# 4.2 Tạo bảng USERS
-sudo mysql -u root "$DB_NAME" <<EOF
-CREATE TABLE IF NOT EXISTS users (
+
+# --- 5. TẠO CẤU TRÚC BẢNG ---
+echo "📝 Dang tao cac bang du lieu..."
+
+sudo mysql ${DB_NAME} -e "CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
     password VARCHAR(255) NOT NULL,
     email VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-EOF
+);"
 
-# 4.3 Tạo bảng CATEGORIES
-sudo mysql -u root "$DB_NAME" <<EOF
-CREATE TABLE IF NOT EXISTS categories (
+sudo mysql ${DB_NAME} -e "CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-EOF
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL
+);"
 
-# 4.4 Tạo bảng POSTS (Có cột SLUG)
-sudo mysql -u root "$DB_NAME" <<EOF
-CREATE TABLE IF NOT EXISTS posts (
+sudo mysql ${DB_NAME} -e "CREATE TABLE IF NOT EXISTS posts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255),
-    content TEXT,
+    slug VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
     image VARCHAR(255),
-    category_id INT,
     user_id INT,
+    category_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-EOF
+);"
 
-# 4.5 Tạo Admin mặc định (Pass: 123456)
-# Dùng PHP để Hash password cho chuẩn
-ADMIN_PASS_HASH=$(php -r "echo password_hash('123456', PASSWORD_DEFAULT);")
-sudo mysql -u root "$DB_NAME" -e "INSERT INTO users (username, password, email) VALUES ('admin', '$ADMIN_PASS_HASH', 'admin@example.com');"
-sudo mysql -u root "$DB_NAME" -e "INSERT INTO categories (name) VALUES ('Tin công nghệ'), ('Đời sống');"
+sudo mysql ${DB_NAME} -e "CREATE TABLE IF NOT EXISTS options (
+    option_name VARCHAR(100) PRIMARY KEY,
+    option_value TEXT
+);"
 
-echo "✅ Đã tạo xong bảng và tài khoản Admin."
 
-# 5. TẠO FILE KẾT NỐI PHP
-echo -e "${GREEN}👉 Bước 5: Tạo file cấu hình db.php...${NC}"
-mkdir -p "$TARGET_DIR/includes"
+# --- 6. TẠO DỮ LIỆU MẪU ---
+echo "👤 Dang them du lieu mau..."
 
-cat <<EOF | sudo tee "$TARGET_DIR/includes/db.php" > /dev/null
+# Hash pass admin
+HASH_PASS=$(php -r "echo password_hash('$ADMIN_PASS', PASSWORD_DEFAULT);")
+
+# Thêm Admin vào DB
+sudo mysql ${DB_NAME} -e "DELETE FROM users WHERE username='$ADMIN_USER';"
+sudo mysql ${DB_NAME} -e "INSERT INTO users (username, password, email) VALUES ('$ADMIN_USER', '$HASH_PASS', 'admin@example.com');"
+
+# Thêm cấu hình mẫu
+sudo mysql ${DB_NAME} -e "INSERT IGNORE INTO categories (name, slug) VALUES ('Tin tức', 'tin-tuc'), ('Lập trình', 'lap-trinh');"
+sudo mysql ${DB_NAME} -e "INSERT IGNORE INTO options (option_name, option_value) VALUES ('site_title', 'BiCMS'), ('site_description', 'Một dự án CMS siêu nhẹ');"
+
+
+# --- 7. GHI FILE CẤU HÌNH (Kết nối Code với DB vừa tạo) ---
+echo "⚙️ Dang ghi file config..."
+
+# Ghi đè file includes/db.php
+cat > includes/db.php <<EOF
 <?php
 \$host = 'localhost';
-\$db   = '$DB_NAME';
-\$user = '$DB_USER';
-\$pass = '$DB_PASS';
-\$charset = 'utf8mb4';
-
-\$dsn = "mysql:host=\$host;dbname=\$db;charset=\$charset";
-\$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+\$dbname = '$DB_NAME';
+\$username = '$DB_USER';
+\$password = '$DB_PASS';
 
 try {
-    \$pdo = new PDO(\$dsn, \$user, \$pass, \$options);
-} catch (\PDOException \$e) {
-    throw new \PDOException(\$e->getMessage(), (int)\$e->getCode());
+    \$pdo = new PDO("mysql:host=\$host;dbname=\$dbname;charset=utf8", \$username, \$password);
+    \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException \$e) {
+    die("Lỗi kết nối Database: " . \$e->getMessage());
 }
 ?>
 EOF
 
-# 6. PHÂN QUYỀN & HOÀN TẤT
-echo -e "${GREEN}👉 Bước 6: Dọn dẹp & Kích hoạt...${NC}"
-sudo chown -R www-data:www-data "$TARGET_DIR"
-sudo chmod -R 755 "$TARGET_DIR"
-sudo a2enmod rewrite
-sudo service apache2 restart
 
-echo -e "${CYAN}===========================================${NC}"
-echo -e "${GREEN}🎉 CÀI ĐẶT THÀNH CÔNG!${NC}"
-echo -e "👉 Website: http://localhost/$INSTALL_FOLDER"
-echo -e "👉 Admin Login: admin / 123456"
-echo -e "👉 DB Pass: $DB_PASS"
-echo -e "${CYAN}===========================================${NC}"
+# --- 8. PHÂN QUYỀN & HOÀN TẤT ---
+# Tạo folder uploads nếu trong git chưa có (hoặc git chỉ lưu folder rỗng)
+mkdir -p uploads
+sudo chown -R www-data:www-data /var/www/html/bicms
+sudo chmod -R 775 /var/www/html/bicms
+
+echo "=========================================="
+echo "✅ CÀI ĐẶT THÀNH CÔNG!"
+echo "👉 Truy cập: http://$(hostname -I | awk '{print $1}')/bicms"
+echo "👉 Admin CMS: $ADMIN_USER / $ADMIN_PASS"
+echo "👉 MySQL Info: User '$DB_USER' - Pass '$DB_PASS'"
+echo "=========================================="
